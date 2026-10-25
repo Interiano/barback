@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Barback - bar inventory, par tracking, AI cocktail lab
+Globals: 
+  Function:
+    Runtime: python3.14
+    Architectures: [arm64]
+    Timeout: 10
+    MemorySize: 256
+    # X-Ray traces for every function
+    Tracing: Active
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/health/
+      Handler: app.handler
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+          
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com

@@ -1,0 +1,9 @@
+#is where sam build writes its output
+.aws-sam/ 
+#holds downloaded npm packages, which are huge and can be reinstalled
+node_modules/
+#is the built frontend
+dist/ 
+#holds Python's compiled cache files
+__pycache__/
+
