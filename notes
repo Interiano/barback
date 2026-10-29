@@ -1,0 +1,19 @@
+Okay, building barback.
+Building an app that will help with my Lead Bartending duties. 
+Inventory - display well bottles forefront with par levels - alarm when par is low. 
+Ai Integreation - add ingredients, this will build a cocktail, api call 
+Cognito user pools - indentity center - seperate owner from employee
+AWS Budget
+AWS CloudTrail - monitor and seperate from architecture (further protection from deleting trail)
+
+## Build 1: 
+SAM skeleton for CloudFormation
+/health is route/path. standard health check
+api address / path 
+
+- template.yaml = IaC
+- Transform = expands SAM shorthand into full CludFormation
+- Globals = shared settings for every function - x-ray
+- HttpApi = API
+- HealthFunction = /health code
+ - CodeUri = which folder, Handler app.handler = file app.py
