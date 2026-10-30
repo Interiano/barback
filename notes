@@ -35,3 +35,12 @@ UserPool = email login, password (+12 char), optional MFA, email recovery, custo
 - /health = Auth NONE (public); /me = needs a token, returns this claims
 - Test: /health ok, /me without token 401 unauthorized
 - Test user: +owner email, CONFIRMED, group owner, barId bar-001
+
+## Build 3: DynamoDB
+Scale to Zero - serverless
+create a secondary means to index for below par
+
+- PK = which bar, SK = which item
+- GSI1 = index of only below-par items, instant reorder list, no table scan
+- Code adds/removes GSI1PK when stock crosses par
+- query by key = fast

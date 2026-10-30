@@ -118,7 +118,44 @@ Resources:
           Projection: { ProjectionType: ALL }
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
-        
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/api/
+      Handler: app.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BarbackTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BarbackTable
+      Events:
+        ListItems:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /items
+            Method: GET
+        CreateItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /items
+            Method: POST
+        UpdateItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /items/{id}
+            Method: PUT
+        DeleteItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /items/{id}
+            Method: DELETE
+
 Outputs:
   ApiUrl:
     Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
