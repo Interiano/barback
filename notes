@@ -6,7 +6,7 @@ Cognito user pools - indentity center - seperate owner from employee
 AWS Budget
 AWS CloudTrail - monitor and seperate from architecture (further protection from deleting trail)
 
-## Build 1: 
+## Build 1: SAM foundation
 SAM skeleton for CloudFormation
 /health is route/path. standard health check
 api address / path 
@@ -17,3 +17,21 @@ api address / path
 - HttpApi = API
 - HealthFunction = /health code
  - CodeUri = which folder, Handler app.handler = file app.py
+- !Ref = get another resource's ID; !Sub = fill values into the string
+- Outputs = print useful values (ApiUrl) after deploy
+- Commands: sam validate --lint > sam build > sam deploy > --config-env dev
+- samconfig.toml = saved deploy answers (stack barback-dev, us-west-2)
+- Test: /health returned "ok"
+
+## Build 2: Cognito sign-in
+UserPool = email login, password (+12 char), optional MFA, email recovery, custom barId = which bar a user works at
+
+- UserPoolClient - the door React uses
+  - no secret (browsers can't hide one)
+  - WriteAttributes [email] = users can't change their own barId
+  - PreventUserExistenceErrors = hides whether an email is registered
+- OwnerGroup / StaffGroup = role badges
+- JWT authorizer on HttpApi = hides whether an email is registered
+- /health = Auth NONE (public); /me = needs a token, returns this claims
+- Test: /health ok, /me without token 401 unauthorized
+- Test user: +owner email, CONFIRMED, group owner, barId bar-001
