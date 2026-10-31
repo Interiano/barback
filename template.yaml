@@ -68,7 +68,7 @@ Resources:
       ClientName: barback-client
       UserPoolId: !Ref UserPool
       GenerateSecret: false
-      ExplicitAuthFlows: [ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      ExplicitAuthFlows: [ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH, ALLOW_ADMIN_USER_PASSWORD_AUTH]
       PreventUserExistenceErrors: ENABLED
       ReadAttributes: [email, email_verified, custom:barId]
       WriteAttributes: [email]
