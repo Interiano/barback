@@ -1,31 +1,28 @@
 import { useEffect, useState } from "react";
-import { api } from "./auth";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import Inventory from "./pages/Inventory";
 import "./App.css";
 
-type Item = { SK: string; name: string; on_hand: number; par: number };
+const pages = [
+  { path: "/today", label: "Today" },
+  { path: "/inventory", label: "Inventory" },
+  { path: "/lab", label: "Cocktail Lab" },
+  { path: "/orders", label: "Par & Orders" },
+  { path: "/recipes", label: "Recipes" },
+  { path: "/team", label: "Team" },
+  { path: "/settings", label: "Settings" },
+];
 
-function StockCard({ name, onHand, par }: { name: string; onHand: number; par: number }) {
-  const have = Number(onHand);
-  const need = Number(par);
-  const low = have < need;
-  const percent = Math.min(100, Math.round((have / need) * 100));
-
+function ComingSoon({ title }: { title: string }) {
   return (
-    <div className={low ? "card low" : "card"}>
-      <h3>{name}</h3>
-      <p className="count">
-        {have} of {need} {low ? "· below par" : ""}
-      </p>
-      <div className="track">
-        <div className="fill" style={{ width: percent + "%" }} />
-      </div>
-    </div>
+    <>
+      <h1>{title}</h1>
+      <p className="muted">Coming in a later build.</p>
+    </>
   );
 }
 
 function App() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [error, setError] = useState("");
   const [theme, setTheme] = useState(localStorage.getItem("theme") ?? "light");
 
   useEffect(() => {
@@ -33,28 +30,32 @@ function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    api("/items")
-      .then((r) => r.json())
-      .then(setItems)
-      .catch((e) => setError(String(e)));
-  }, []);
-
   return (
-    <main className="page">
-      <header className="top">
-        <h1>Inventory</h1>
+    <div className="shell">
+      <nav className="sidebar">
+        <div className="brand">Barback</div>
+        {pages.map((p) => (
+          <NavLink key={p.path} to={p.path} className="navlink">
+            {p.label}
+          </NavLink>
+        ))}
         <button className="toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
           {theme === "light" ? "Dark mode" : "Light mode"}
         </button>
-      </header>
-      {error && <p>Error: {error}</p>}
-      <div className="grid">
-        {items.map((i) => (
-          <StockCard key={i.SK} name={i.name} onHand={i.on_hand} par={i.par} />
-        ))}
-      </div>
-    </main>
+      </nav>
+
+      <main className="page">
+        <Routes>
+          <Route path="/" element={<Navigate to="/inventory" replace />} />
+          <Route path="/inventory" element={<Inventory />} />
+          {pages
+            .filter((p) => p.path !== "/inventory")
+            .map((p) => (
+              <Route key={p.path} path={p.path} element={<ComingSoon title={p.label} />} />
+            ))}
+        </Routes>
+      </main>
+    </div>
   );
 }
 
