@@ -26,6 +26,12 @@ function StockCard({ name, onHand, par }: { name: string; onHand: number; par: n
 function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState("");
+  const [theme, setTheme] = useState(localStorage.getItem("theme") ?? "light");
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     api("/items")
@@ -36,7 +42,12 @@ function App() {
 
   return (
     <main className="page">
-      <h1>Inventory</h1>
+      <header className="top">
+        <h1>Inventory</h1>
+        <button className="toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+          {theme === "light" ? "Dark mode" : "Light mode"}
+        </button>
+      </header>
       {error && <p>Error: {error}</p>}
       <div className="grid">
         {items.map((i) => (
