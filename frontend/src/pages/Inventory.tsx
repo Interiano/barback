@@ -1,37 +1,8 @@
-import { useEffect, useState } from "react";
-import { api } from "../auth";
-
-type Item = { SK: string; name: string; on_hand: number; par: number };
-
-function StockCard({ name, onHand, par }: { name: string; onHand: number; par: number }) {
-  const have = Number(onHand);
-  const need = Number(par);
-  const low = have < need;
-  const percent = Math.min(100, Math.round((have / need) * 100));
-
-  return (
-    <div className={low ? "card low" : "card"}>
-      <h3>{name}</h3>
-      <p className="count">
-        {have} of {need} {low ? "· below par" : ""}
-      </p>
-      <div className="track">
-        <div className="fill" style={{ width: percent + "%" }} />
-      </div>
-    </div>
-  );
-}
+import StockCard from "../StockCard";
+import { useItems } from "../items";
 
 function Inventory() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api("/items")
-      .then((r) => r.json())
-      .then(setItems)
-      .catch((e) => setError(String(e)));
-  }, []);
+  const { items, error } = useItems();
 
   return (
     <>

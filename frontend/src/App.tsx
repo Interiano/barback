@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import Inventory from "./pages/Inventory";
+import Today from "./pages/Today";
 import "./App.css";
 
 const pages = [
@@ -46,10 +47,11 @@ function App() {
 
       <main className="page">
         <Routes>
-          <Route path="/" element={<Navigate to="/inventory" replace />} />
+          <Route path="/" element={<Navigate to="/today" replace />} />
+          <Route path="/today" element={<Today />} />
           <Route path="/inventory" element={<Inventory />} />
           {pages
-            .filter((p) => p.path !== "/inventory")
+            .filter((p) => p.path !== "/today" && p.path !== "/inventory")
             .map((p) => (
               <Route key={p.path} path={p.path} element={<ComingSoon title={p.label} />} />
             ))}
