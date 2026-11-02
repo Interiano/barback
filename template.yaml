@@ -26,6 +26,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - http://localhost:5173
+          - !Sub https://${SiteDistribution.DomainName}
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PUT, DELETE]
 
@@ -161,6 +162,58 @@ Resources:
             Path: /items/{id}
             Method: DELETE
 
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+
+  SiteOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: barback-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            S3OriginConfig: { OriginAccessIdentity: '' }
+            OriginAccessControlId: !GetAtt SiteOAC.Id
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+        CustomErrorResponses:
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html }
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudfront.amazonaws.com }
+            Action: s3:GetObject
+            Resource: !Sub ${SiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}
 Outputs:
   ApiUrl:
     Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
@@ -168,4 +221,11 @@ Outputs:
     Value: !Ref UserPool
   UserPoolClientId:
     Value: !Ref UserPoolClient
+
+  SiteBucketName:
+    Value: !Ref SiteBucket
+  SiteDistributionId:
+    Value: !Ref SiteDistribution
+  SiteUrl:
+    Value: !Sub https://${SiteDistribution.DomainName}
 
