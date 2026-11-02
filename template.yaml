@@ -23,6 +23,11 @@ Resources:
               issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
               audience:
                 - !Ref UserPoolClient
+      CorsConfiguration:
+        AllowOrigins:
+          - http://localhost:5173
+        AllowHeaders: [authorization, content-type]
+        AllowMethods: [GET, POST, PUT, DELETE]
 
   HealthFunction:
     Type: AWS::Serverless::Function
