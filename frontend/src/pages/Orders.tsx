@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../auth";
-import { isLow, useItems } from "../items";
+import { CATEGORIES, isLow, useItems } from "../items";
 
 type Unit = "btl" | "case";
 type Line = { name: string; qty: number; unit: Unit };
@@ -25,13 +25,17 @@ function summary(lines: Line[]) {
 }
 
 function Orders() {
-  const { items, error, loading } = useItems();
+  const { items, error, loading, reload } = useItems();
   const [cart, setCart] = useState<Line[] | null>(null);
   const [search, setSearch] = useState("");
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState(1);
   const [newUnit, setNewUnit] = useState<Unit>("btl");
   const [formError, setFormError] = useState("");
+  const [saveToInventory, setSaveToInventory] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [newPar, setNewPar] = useState(1);
+  const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [sendError, setSendError] = useState("");
@@ -51,14 +55,34 @@ function Orders() {
     setResult(null);
   }
 
-  function addCustom() {
+  async function addCustom() {
     const name = newName.trim();
     if (!name) return setFormError("Enter a product name.");
     if (!Number.isInteger(newQty) || newQty < 1 || newQty > 999) return setFormError("Quantity must be 1 to 999.");
+    const exists = items.some((i) => i.name.toLowerCase() === name.toLowerCase());
+    if (saveToInventory && !exists) {
+      if (!newCategory) return setFormError("Choose a category.");
+      if (!Number.isInteger(newPar) || newPar < 1 || newPar > 999) return setFormError("Par must be 1 to 999.");
+      setAdding(true);
+      try {
+        const r = await api("/items", {
+          method: "POST",
+          body: JSON.stringify({ name, category: newCategory, on_hand: 0, par: newPar }),
+        });
+        if (r.status === 403) return setFormError("Only owners can add to inventory.");
+        if (!r.ok) return setFormError(`Could not save to inventory (${r.status})`);
+        reload();
+      } finally {
+        setAdding(false);
+      }
+    }
     setFormError("");
     update(addLine(lines, { name, qty: newQty, unit: newUnit }));
     setNewName("");
     setNewQty(1);
+    setSaveToInventory(false);
+    setNewCategory("");
+    setNewPar(1);
   }
 
   async function send() {
@@ -175,8 +199,34 @@ function Orders() {
             <option value="btl">btl</option>
             <option value="case">case</option>
           </select>
-          <button className="btn" onClick={addCustom}>Add to order</button>
+          <button className="btn" onClick={addCustom} disabled={adding}>
+            {adding ? "Saving…" : "Add to order"}
+          </button>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={saveToInventory} onChange={(e) => setSaveToInventory(e.target.checked)} />
+          Also add to inventory (new product you'll keep stocking)
+        </label>
+        {saveToInventory && (
+          <div className="add-row">
+            <select aria-label="Category" className="field category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+              <option value="">Choose category…</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <label className="muted" htmlFor="new-par">Par</label>
+            <input
+              id="new-par"
+              className="field qty"
+              type="number"
+              min={1}
+              max={999}
+              value={newPar}
+              onChange={(e) => setNewPar(Number(e.target.value))}
+            />
+          </div>
+        )}
         {formError && <p className="error">{formError}</p>}
       </section>
 

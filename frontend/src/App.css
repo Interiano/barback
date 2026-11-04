@@ -373,3 +373,50 @@ button.btn:disabled {
   width: 44px;
   height: 44px;
 }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--card);
+  font-weight: 700;
+}
+
+.group-title {
+  font-size: 18px;
+  margin: 24px 0 12px;
+}
+
+.field.category {
+  margin: 12px 0 0;
+  width: 100%;
+}
+
+.add-row .field.category {
+  width: auto;
+  min-width: 180px;
+  margin: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}

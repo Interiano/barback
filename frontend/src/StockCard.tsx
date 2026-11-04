@@ -1,4 +1,6 @@
-function StockCard({ name, onHand, par }: { name: string; onHand: number; par: number }) {
+import type { ReactNode } from "react";
+
+function StockCard({ name, onHand, par, children }: { name: string; onHand: number; par: number; children?: ReactNode }) {
   const have = Number(onHand);
   const need = Number(par);
   const low = have < need;
@@ -13,6 +15,7 @@ function StockCard({ name, onHand, par }: { name: string; onHand: number; par: n
       <div className="track">
         <div className="fill" style={{ width: percent + "%" }} />
       </div>
+      {children}
     </div>
   );
 }
