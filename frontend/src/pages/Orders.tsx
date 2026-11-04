@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { api } from "../auth";
-import { CATEGORIES, isLow, useItems } from "../items";
+import CategoryPicker from "../CategoryPicker";
+import { categoryOf, isLow, useCategories, useItems, type Item } from "../items";
 
 type Unit = "btl" | "case";
 type Line = { name: string; qty: number; unit: Unit };
 type Result = { sent: boolean; summary?: string; message?: string };
 
-function addLine(lines: Line[], add: Line) {
+// Adding a product that is already on the sheet (same unit) sets its quantity, so nothing doubles up.
+function setLine(lines: Line[], add: Line) {
   const match = lines.find((l) => l.name.toLowerCase() === add.name.toLowerCase() && l.unit === add.unit);
   if (match) {
-    return lines.map((l) => (l === match ? { ...l, qty: Math.min(999, l.qty + add.qty) } : l));
+    return lines.map((l) => (l === match ? { ...l, qty: add.qty } : l));
   }
   return [...lines, add];
 }
@@ -24,10 +26,22 @@ function summary(lines: Line[]) {
   return parts.join(", ");
 }
 
+function shortfall(item: Item) {
+  return Math.max(1, Math.ceil(Number(item.par) - Number(item.on_hand)));
+}
+
+function clampQty(value: string) {
+  return Math.max(1, Math.min(999, Math.round(Number(value)) || 1));
+}
+
 function Orders() {
   const { items, error, loading, reload } = useItems();
+  const { categories, create } = useCategories();
   const [cart, setCart] = useState<Line[] | null>(null);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
+  const [rowQty, setRowQty] = useState<Record<string, number>>({});
+  const [rowUnit, setRowUnit] = useState<Record<string, Unit>>({});
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState(1);
   const [newUnit, setNewUnit] = useState<Unit>("btl");
@@ -42,11 +56,13 @@ function Orders() {
 
   const low = items
     .filter(isLow)
-    .map((i) => ({ name: i.name, qty: Math.ceil(Number(i.par) - Number(i.on_hand)), unit: "btl" as Unit }))
+    .map((i) => ({ name: i.name, qty: shortfall(i), unit: "btl" as Unit }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const lines = cart ?? low;
+  const present = [...categories, "Uncategorized"].filter((c) => items.some((i) => categoryOf(i, categories) === c));
   const shown = items
+    .filter((i) => filter === "All" || categoryOf(i, categories) === filter)
     .filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -55,13 +71,19 @@ function Orders() {
     setResult(null);
   }
 
+  function addFromStock(item: Item) {
+    const qty = rowQty[item.SK] ?? (isLow(item) ? shortfall(item) : 1);
+    const unit = rowUnit[item.SK] ?? "btl";
+    update(setLine(lines, { name: item.name, qty, unit }));
+  }
+
   async function addCustom() {
     const name = newName.trim();
     if (!name) return setFormError("Enter a product name.");
     if (!Number.isInteger(newQty) || newQty < 1 || newQty > 999) return setFormError("Quantity must be 1 to 999.");
     const exists = items.some((i) => i.name.toLowerCase() === name.toLowerCase());
     if (saveToInventory && !exists) {
-      if (!newCategory) return setFormError("Choose a category.");
+      if (!newCategory) return setFormError("Choose a category. Every inventory item needs one.");
       if (!Number.isInteger(newPar) || newPar < 1 || newPar > 999) return setFormError("Par must be 1 to 999.");
       setAdding(true);
       try {
@@ -77,7 +99,7 @@ function Orders() {
       }
     }
     setFormError("");
-    update(addLine(lines, { name, qty: newQty, unit: newUnit }));
+    update(setLine(lines, { name, qty: newQty, unit: newUnit }));
     setNewName("");
     setNewQty(1);
     setSaveToInventory(false);
@@ -121,7 +143,7 @@ function Orders() {
                   <span>
                     {l.name} <span className="muted">· order {l.qty} btl</span>
                   </span>
-                  <button className="btn small" onClick={() => update(addLine(lines, l))}>Add</button>
+                  <button className="btn small" onClick={() => update(setLine(lines, l))}>Add</button>
                 </li>
               ))}
             </ul>
@@ -130,43 +152,58 @@ function Orders() {
 
         <section className="panel">
           <h2>All stock</h2>
-          <label htmlFor="search" className="muted">Search inventory</label>
-          <input
-            id="search"
-            className="field"
-            placeholder="e.g. gin"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <table className="sheet">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>On hand</th>
-                <th>Par</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((i) => (
-                <tr key={i.SK} className={isLow(i) ? "low-row" : ""}>
-                  <td>{i.name}</td>
-                  <td>{Number(i.on_hand)}</td>
-                  <td>{Number(i.par)}</td>
-                  <td>
-                    <button className="btn small" onClick={() => update(addLine(lines, { name: i.name, qty: 1, unit: "btl" }))}>
-                      Add
-                    </button>
-                  </td>
-                </tr>
+          <div className="stock-controls">
+            <select aria-label="Filter by category" className="field" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="All">All categories</option>
+              {present.map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
-              {shown.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="muted">No match. Add it below as a new line.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </select>
+            <input
+              aria-label="Search inventory"
+              className="field"
+              placeholder="Search, e.g. gin"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <p className="muted small-text">
+            Showing {shown.length} of {items.length}
+          </p>
+          <div className="stock-list">
+            {shown.map((i) => (
+              <div key={i.SK} className={isLow(i) ? "stock-row low-row" : "stock-row"}>
+                <div className="stock-name">
+                  <span>{i.name}</span>
+                  <span className="muted small-text">
+                    {Number(i.on_hand)} / {Number(i.par)} · {categoryOf(i, categories)}
+                  </span>
+                </div>
+                <input
+                  aria-label={`Quantity to order for ${i.name}`}
+                  className="field qty"
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={rowQty[i.SK] ?? (isLow(i) ? shortfall(i) : 1)}
+                  onChange={(e) => setRowQty({ ...rowQty, [i.SK]: clampQty(e.target.value) })}
+                />
+                <select
+                  aria-label={`Unit for ${i.name}`}
+                  className="field unit"
+                  value={rowUnit[i.SK] ?? "btl"}
+                  onChange={(e) => setRowUnit({ ...rowUnit, [i.SK]: e.target.value as Unit })}
+                >
+                  <option value="btl">btl</option>
+                  <option value="case">case</option>
+                </select>
+                <button className="btn small" onClick={() => addFromStock(i)} aria-label={`Add ${i.name}`}>
+                  Add
+                </button>
+              </div>
+            ))}
+            {shown.length === 0 && <p className="muted">No match. Add it below as a new line.</p>}
+          </div>
         </section>
       </div>
 
@@ -193,7 +230,7 @@ function Orders() {
             min={1}
             max={999}
             value={newQty}
-            onChange={(e) => setNewQty(Number(e.target.value))}
+            onChange={(e) => setNewQty(clampQty(e.target.value))}
           />
           <select aria-label="Unit" className="field unit" value={newUnit} onChange={(e) => setNewUnit(e.target.value as Unit)}>
             <option value="btl">btl</option>
@@ -209,12 +246,13 @@ function Orders() {
         </label>
         {saveToInventory && (
           <div className="add-row">
-            <select aria-label="Category" className="field category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-              <option value="">Choose category…</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <CategoryPicker
+              label="Category"
+              value={newCategory}
+              categories={categories}
+              onChange={setNewCategory}
+              onCreate={create}
+            />
             <label className="muted" htmlFor="new-par">Par</label>
             <input
               id="new-par"
@@ -223,7 +261,7 @@ function Orders() {
               min={1}
               max={999}
               value={newPar}
-              onChange={(e) => setNewPar(Number(e.target.value))}
+              onChange={(e) => setNewPar(clampQty(e.target.value))}
             />
           </div>
         )}
@@ -258,9 +296,7 @@ function Orders() {
                         min={1}
                         max={999}
                         value={l.qty}
-                        onChange={(e) =>
-                          update(lines.map((x) => (x === l ? { ...x, qty: Math.max(1, Math.min(999, Math.round(Number(e.target.value)) || 1)) } : x)))
-                        }
+                        onChange={(e) => update(lines.map((x) => (x === l ? { ...x, qty: clampQty(e.target.value) } : x)))}
                       />
                     </td>
                     <td>{l.unit}</td>

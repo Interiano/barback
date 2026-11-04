@@ -161,6 +161,18 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /items/{id}
             Method: DELETE
+        ListCategories:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories
+            Method: GET
+        CreateCategory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories
+            Method: POST
 
   OrdersFunction:
     Type: AWS::Serverless::Function

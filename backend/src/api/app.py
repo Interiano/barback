@@ -1,4 +1,5 @@
 import json  # converts between Python data and JSON text
+import re  # checks the characters in custom category names
 import os  # reads settings like TABLE_NAME
 import uuid  # random unique IDs for new items
 from decimal import Decimal  # DynamoDB stores numbers as Decimal
@@ -7,11 +8,14 @@ import boto3  # AWS library for Python
 
 table = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 
-# The only categories Barback accepts. The AI Cocktail Lab (Build 6) uses these.
+# Built-in categories. Each bar can add its own on top (stored in one CATEGORIES row).
+# The AI Cocktail Lab (Build 6) uses these to pick spirits by type.
 CATEGORIES = [
     "Vodka", "Gin", "Tequila", "Mezcal", "Rum", "Whiskey", "Brandy",
     "Liqueur", "Amaro & Aperitivo", "Vermouth & Wine", "Beer", "Syrup & Mixer", "Other",
 ]
+MAX_CUSTOM = 50
+CATEGORY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 &'\-/]{0,29}$")
 
 
 def caller(event):  # who is calling: their bar and their groups, from the token
@@ -34,6 +38,15 @@ def tag_par(item):  # below par? add the reorder tag; otherwise remove it
     return item
 
 
+def custom_categories(pk):  # this bar's own categories, if any
+    found = table.get_item(Key={"PK": pk, "SK": "CATEGORIES"}).get("Item")
+    return found["names"] if found else []
+
+
+def valid_category(pk, category):  # built-in or one this bar created
+    return category in CATEGORIES or category in custom_categories(pk)
+
+
 def handler(event, context):
     bar, groups = caller(event)
     route = event["routeKey"]
@@ -46,15 +59,39 @@ def handler(event, context):
         )
         return resp(200, r["Items"])
 
+    if route == "GET /categories":
+        return resp(200, {"builtIn": CATEGORIES, "custom": custom_categories(pk)})
+
+    if route == "POST /categories":
+        if "owner" not in groups:
+            return resp(403, {"error": "owner only"})
+        body = json.loads(event.get("body") or "{}")
+        if not isinstance(body, dict):
+            return resp(400, {"error": "body must be a JSON object"})
+        name = str(body.get("name", "")).strip()
+        if not CATEGORY_NAME.match(name):
+            return resp(400, {"error": "category name: 1-30 letters, numbers, spaces, & ' - /"})
+        custom = custom_categories(pk)
+        existing = [c.lower() for c in CATEGORIES + custom]
+        if name.lower() in existing:
+            return resp(409, {"error": "that category already exists"})
+        if len(custom) >= MAX_CUSTOM:
+            return resp(400, {"error": f"limit is {MAX_CUSTOM} custom categories"})
+        custom = custom + [name]
+        table.put_item(Item={"PK": pk, "SK": "CATEGORIES", "names": custom})
+        return resp(201, {"builtIn": CATEGORIES, "custom": custom})
+
     if route == "POST /items":
         if "owner" not in groups:
             return resp(403, {"error": "owner only"})
         body = json.loads(event.get("body") or "{}", parse_float=Decimal)
         if not body.get("name") or "on_hand" not in body or "par" not in body:
             return resp(400, {"error": "name, on_hand and par are required"})
-        category = body.get("category", "Other")
-        if category not in CATEGORIES:
-            return resp(400, {"error": f"category must be one of: {', '.join(CATEGORIES)}"})
+        category = body.get("category")
+        if not category:
+            return resp(400, {"error": "category is required"})
+        if not valid_category(pk, category):
+            return resp(400, {"error": "unknown category; create it first"})
         item = {
             "name": body["name"],
             "category": category,
@@ -79,8 +116,8 @@ def handler(event, context):
             allowed = ["on_hand"]
             if any(key in body for key in ["par", "name", "category", "unit"]):
                 return resp(403, {"error": "staff can only update on_hand"})
-        if "category" in body and body["category"] not in CATEGORIES:
-            return resp(400, {"error": f"category must be one of: {', '.join(CATEGORIES)}"})
+        if "category" in body and not valid_category(pk, body["category"]):
+            return resp(400, {"error": "unknown category; create it first"})
         for key in allowed:
             if key in body:
                 if key in ("on_hand", "par"):

@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { api } from "../auth";
+import CategoryPicker from "../CategoryPicker";
 import StockCard from "../StockCard";
-import { CATEGORIES, categoryOf, itemId, useItems, type Item } from "../items";
+import { categoryOf, itemId, useCategories, useItems, type Item } from "../items";
 
 function Inventory() {
   const { items, error, reload } = useItems();
+  const { categories, create } = useCategories();
   const [filter, setFilter] = useState("All");
   const [saveError, setSaveError] = useState("");
 
-  const present = [...CATEGORIES, "Uncategorized"].filter((c) => items.some((i) => categoryOf(i) === c));
+  const present = [...categories, "Uncategorized"].filter((c) => items.some((i) => categoryOf(i, categories) === c));
   const groups = present.filter((c) => filter === "All" || filter === c);
 
   async function changeCategory(item: Item, category: string) {
@@ -38,21 +40,17 @@ function Inventory() {
           <h2 className="group-title">{c}</h2>
           <div className="grid">
             {items
-              .filter((i) => categoryOf(i) === c)
+              .filter((i) => categoryOf(i, categories) === c)
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((i) => (
                 <StockCard key={i.SK} name={i.name} onHand={i.on_hand} par={i.par}>
-                  <select
-                    aria-label={`Category for ${i.name}`}
-                    className="field category"
-                    value={categoryOf(i) === "Uncategorized" ? "" : categoryOf(i)}
-                    onChange={(e) => changeCategory(i, e.target.value)}
-                  >
-                    {categoryOf(i) === "Uncategorized" && <option value="">Choose category…</option>}
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                  <CategoryPicker
+                    label={`Category for ${i.name}`}
+                    value={categoryOf(i, categories) === "Uncategorized" ? "" : categoryOf(i, categories)}
+                    categories={categories}
+                    onChange={(cat) => changeCategory(i, cat)}
+                    onCreate={create}
+                  />
                 </StockCard>
               ))}
           </div>

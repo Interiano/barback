@@ -420,3 +420,79 @@ button.btn:disabled {
   gap: 8px;
   margin-top: 12px;
 }
+
+.stock-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.stock-controls .field {
+  margin: 0;
+}
+
+.small-text {
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.stock-list {
+  max-height: 360px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.stock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 72px auto;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.stock-row .field.qty,
+.stock-row .field.unit {
+  width: 100%;
+  padding: 6px 8px;
+}
+
+.stock-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stock-name span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.low-row .stock-name span:first-child {
+  color: var(--low);
+  font-weight: 700;
+}
+
+.stock-name .small-text {
+  margin: 0;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.picker .field {
+  flex: 1;
+  min-width: 120px;
+  margin: 0;
+}
+
+.picker .error {
+  width: 100%;
+  margin: 0;
+}
