@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import Inventory from "./pages/Inventory";
 import Today from "./pages/Today";
 import Count from "./pages/Count";
+import Orders from "./pages/Orders";
 import "./App.css";
 
 const pages = [
@@ -52,8 +53,9 @@ function App() {
           <Route path="/today" element={<Today />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/count" element={<Count />} />
+          <Route path="/orders" element={<Orders />} />
           {pages
-            .filter((p) => p.path !== "/today" && p.path !== "/inventory")
+            .filter((p) => !["/today", "/inventory", "/orders"].includes(p.path))
             .map((p) => (
               <Route key={p.path} path={p.path} element={<ComingSoon title={p.label} />} />
             ))}

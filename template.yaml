@@ -162,6 +162,31 @@ Resources:
             Path: /items/{id}
             Method: DELETE
 
+  OrdersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/orders/
+      Handler: app.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BarbackTable
+          FROM_EMAIL: interiano88.julio@gmail.com
+          TO_EMAIL: interiano88.julio+distributor@gmail.com
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BarbackTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
+      Events:
+        SendOrder:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /orders/send
+            Method: POST
+
   SiteBucket:
     Type: AWS::S3::Bucket
     Properties:
