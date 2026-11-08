@@ -15,6 +15,18 @@ CATEGORIES = [
     "Liqueur", "Amaro & Aperitivo", "Vermouth & Wine", "Beer", "Syrup & Mixer", "Other",
 ]
 MAX_CUSTOM = 50
+
+# House basics (pantry): common ingredients the bar keeps that aren't tracked as inventory.
+# Owners switch these on or off and can add their own. The AI only uses what's switched on.
+PANTRY_DEFAULT_ON = [
+    "Lemon", "Lime", "Orange", "Grapefruit", "Simple syrup", "Sugar",
+    "Soda water", "Tonic", "Angostura bitters", "Egg white", "Salt",
+]
+PANTRY_EXTRAS = [
+    "Mint", "Basil", "Cucumber", "Honey syrup", "Demerara syrup", "Ginger syrup",
+    "Ginger beer", "Cream", "Peychaud's bitters", "Orgeat", "Grenadine",
+]
+PANTRY_OPTIONS = PANTRY_DEFAULT_ON + PANTRY_EXTRAS
 CATEGORY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 &'\-/]{0,29}$")
 
 
@@ -45,6 +57,13 @@ def custom_categories(pk):  # this bar's own categories, if any
 
 def valid_category(pk, category):  # built-in or one this bar created
     return category in CATEGORIES or category in custom_categories(pk)
+
+
+def pantry(pk):  # this bar's house basics, or the defaults if never saved
+    found = table.get_item(Key={"PK": pk, "SK": "PANTRY"}).get("Item")
+    enabled = found["enabled"] if found else PANTRY_DEFAULT_ON
+    custom = found["custom"] if found else []
+    return {"options": PANTRY_OPTIONS, "enabled": enabled, "custom": custom}
 
 
 def handler(event, context):
@@ -80,6 +99,33 @@ def handler(event, context):
         custom = custom + [name]
         table.put_item(Item={"PK": pk, "SK": "CATEGORIES", "names": custom})
         return resp(201, {"builtIn": CATEGORIES, "custom": custom})
+
+    if route == "GET /pantry":
+        return resp(200, pantry(pk))
+
+    if route == "PUT /pantry":
+        if "owner" not in groups:
+            return resp(403, {"error": "owner only"})
+        body = json.loads(event.get("body") or "{}")
+        if not isinstance(body, dict):
+            return resp(400, {"error": "body must be a JSON object"})
+        enabled, custom = body.get("enabled"), body.get("custom", [])
+        if not isinstance(enabled, list) or any(e not in PANTRY_OPTIONS for e in enabled):
+            return resp(400, {"error": "enabled must list items from the options"})
+        if not isinstance(custom, list) or len(custom) > MAX_CUSTOM:
+            return resp(400, {"error": f"custom must be a list of up to {MAX_CUSTOM} items"})
+        cleaned, seen = [], {o.lower() for o in PANTRY_OPTIONS}
+        for name in custom:
+            name = str(name).strip()
+            if not CATEGORY_NAME.match(name):
+                return resp(400, {"error": "item name: 1-30 letters, numbers, spaces, & ' - /"})
+            if name.lower() in seen:
+                return resp(409, {"error": f"{name} is already on the list"})
+            seen.add(name.lower())
+            cleaned.append(name)
+        enabled = [o for o in PANTRY_OPTIONS if o in enabled]  # keep the standard order, no repeats
+        table.put_item(Item={"PK": pk, "SK": "PANTRY", "enabled": enabled, "custom": cleaned})
+        return resp(200, pantry(pk))
 
     if route == "POST /items":
         if "owner" not in groups:

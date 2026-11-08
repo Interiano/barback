@@ -173,6 +173,18 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /categories
             Method: POST
+        GetPantry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /pantry
+            Method: GET
+        SavePantry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /pantry
+            Method: PUT
 
   OrdersFunction:
     Type: AWS::Serverless::Function
@@ -199,6 +211,33 @@ Resources:
             Path: /orders/send
             Method: POST
 
+  AiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/ai/ #the folder just unzipped
+      Handler: app.handler
+      Timeout: 29 #ai replies take seconds. your other functions get 10.29 is just under the api gateway's 30-second
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BarbackTable
+          MODEL_ID: us.anthropic.claude-haiku-4-5-20251001-v1:0 #inference profile
+      Policies:
+        - DynamoDBReadPolicy: #read only
+            TableName: !Ref BarbackTable
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel #permission to call the model. bedrock's converse api use this permission
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0
+                - arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0
+      Events:
+        Lab:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /ai/lab
+            Method: POST
+  
   SiteBucket:
     Type: AWS::S3::Bucket
     Properties:

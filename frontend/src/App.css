@@ -505,3 +505,51 @@ button.btn:disabled {
 .add-row .small-text {
   margin: 0;
 }
+
+.toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toggle-item.on {
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.toggle-item input {
+  accent-color: var(--accent);
+}
+
+.sub-title {
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
+
+.chip-remove {
+  margin-left: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
