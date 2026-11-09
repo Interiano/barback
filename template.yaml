@@ -1,6 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Barback - bar inventory, par tracking, AI cocktail lab
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: barback.juliointeriano.cloud
+  HostedZoneId:
+    Type: String
+    Default: Z07021843IE1B2E9NADXU
+  CertificateArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:343253677879:certificate/fb8c916a-b412-4988-9938-66d7d224a8a4
+
 Globals: 
   Function:
     Runtime: python3.14
@@ -27,6 +39,7 @@ Resources:
         AllowOrigins:
           - http://localhost:5173
           - !Sub https://${SiteDistribution.DomainName}
+          - !Sub https://${DomainName}
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PUT, DELETE]
 
@@ -263,6 +276,12 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
+        Aliases:
+          - !Ref DomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
         DefaultRootObject: index.html
         Origins:
           - Id: site
@@ -290,6 +309,17 @@ Resources:
             Condition:
               StringEquals:
                 AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}
+
+  SiteDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt SiteDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
 Outputs:
   ApiUrl:
     Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
